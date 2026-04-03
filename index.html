@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mcsolver — Maximum Common Induced Subgraph</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    /* ─── tokens ─────────────────────────────────────────────── */
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #13161e;
+      --card:     #181c27;
+      --border:   #252b3b;
+      --accent:   #5f9fff;
+      --accent2:  #a78bfa;
+      --ok:       #34d399;
+      --warn:     #fbbf24;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --radius:   6px;
+      --mono:     'IBM Plex Mono', monospace;
+      --sans:     'DM Sans', sans-serif;
+      --serif:    'DM Serif Display', serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ─── nav ────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,15,20,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 2rem;
+      padding: .75rem 2rem;
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 1rem; font-weight: 500;
+      color: var(--accent); text-decoration: none;
+      letter-spacing: .03em;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .nav-brand svg { width: 20px; height: 20px; }
+    nav a {
+      color: var(--muted); text-decoration: none;
+      font-size: .85rem; font-weight: 400;
+      transition: color .2s;
+    }
+    nav a:hover { color: var(--text); }
+    .nav-spacer { flex: 1; }
+    .nav-gh {
+      font-family: var(--mono); font-size: .78rem;
+      color: var(--accent) !important;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: .25rem .75rem;
+      transition: background .2s, color .2s !important;
+    }
+    .nav-gh:hover { background: var(--accent); color: #fff !important; }
+
+    /* ─── hero ───────────────────────────────────────────────── */
+    .hero {
+      padding: 6rem 2rem 5rem;
+      max-width: 860px; margin: 0 auto;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-family: var(--mono); font-size: .75rem;
+      color: var(--accent); letter-spacing: .12em; text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-family: var(--serif); font-size: clamp(2.2rem, 5vw, 3.6rem);
+      line-height: 1.15; color: #fff; margin-bottom: 1.5rem;
+    }
+    .hero h1 em { font-style: italic; color: var(--accent2); }
+    .hero p {
+      font-size: 1.05rem; color: var(--muted); max-width: 620px; margin: 0 auto 2.5rem;
+    }
+    .hero-badges { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--mono); font-size: .72rem;
+      border: 1px solid var(--border); border-radius: 100px;
+      padding: .28rem .85rem; color: var(--muted);
+    }
+    .badge.blue  { border-color: #2d4a7a; color: var(--accent); background: #0f1d35; }
+    .badge.purple{ border-color: #3d2d6e; color: var(--accent2); background: #1a1130; }
+    .badge.green { border-color: #1a4035; color: var(--ok); background: #0a2018; }
+
+    /* ─── section layout ─────────────────────────────────────── */
+    section {
+      max-width: 1100px; margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+    .section-header { margin-bottom: 2.5rem; }
+    .section-label {
+      font-family: var(--mono); font-size: .72rem;
+      color: var(--accent); letter-spacing: .12em; text-transform: uppercase;
+      display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem;
+    }
+    .section-label::before {
+      content: ''; display: inline-block;
+      width: 24px; height: 1px; background: var(--accent);
+    }
+    .section-header h2 {
+      font-family: var(--serif); font-size: 2rem; color: #fff;
+    }
+    .section-header p { color: var(--muted); max-width: 640px; margin-top: .5rem; }
+
+    /* ─── docs grid ──────────────────────────────────────────── */
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .doc-card {
+      background: var(--card); padding: 1.75rem;
+      transition: background .2s;
+      cursor: default;
+    }
+    .doc-card:hover { background: #1e2436; }
+    .doc-icon {
+      width: 38px; height: 38px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1rem; font-size: 1.1rem;
+    }
+    .doc-card h3 { font-size: .95rem; font-weight: 500; color: #fff; margin-bottom: .4rem; }
+    .doc-card p  { font-size: .85rem; color: var(--muted); line-height: 1.6; }
+    .doc-tag {
+      display: inline-block; margin-top: .8rem;
+      font-family: var(--mono); font-size: .68rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: .15rem .5rem; color: var(--muted);
+    }
+
+    /* ─── algo explainer strip ───────────────────────────────── */
+    .algo-strip {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 2rem 2.5rem;
+      margin-top: 2.5rem;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+    }
+    @media (max-width: 680px) { .algo-strip { grid-template-columns: 1fr; } }
+    .algo-strip h3 { font-size: 1rem; color: #fff; margin-bottom: .6rem; }
+    .algo-strip p  { font-size: .85rem; color: var(--muted); }
+    .algo-strip code {
+      font-family: var(--mono); font-size: .8rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: .12rem .4rem; color: var(--accent);
+    }
+    .sym-table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
+    .sym-table th {
+      font-family: var(--mono); font-size: .72rem; color: var(--muted);
+      border-bottom: 1px solid var(--border); padding: .4rem .6rem; text-align: left;
+    }
+    .sym-table td {
+      font-size: .82rem; padding: .45rem .6rem;
+      border-bottom: 1px solid var(--border); color: var(--text);
+    }
+    .sym-table tr:last-child td { border-bottom: none; }
+    .sym-table .check { color: var(--ok); }
+    .sym-table .cross { color: var(--muted); }
+
+    /* ─── divider ────────────────────────────────────────────── */
+    .divider {
+      height: 1px; background: var(--border);
+      max-width: 1100px; margin: 0 auto;
+    }
+
+    /* ─── solver section ─────────────────────────────────────── */
+    .solver-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 800px) { .solver-layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .panel-header {
+      padding: .85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: .6rem;
+      background: var(--surface);
+    }
+    .panel-header span {
+      font-family: var(--mono); font-size: .78rem; color: var(--muted);
+    }
+    .panel-header strong { font-size: .85rem; color: var(--text); font-weight: 500; }
+    .panel-body { padding: 1.25rem; }
+
+    .upload-zone {
+      border: 1.5px dashed var(--border); border-radius: var(--radius);
+      padding: 2rem 1rem; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #0f1d35; }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+    }
+    .upload-zone .up-icon { font-size: 1.8rem; margin-bottom: .5rem; }
+    .upload-zone p { font-size: .82rem; color: var(--muted); }
+    .upload-zone .filename {
+      margin-top: .75rem; font-family: var(--mono); font-size: .78rem;
+      color: var(--ok); background: #0a2018; border: 1px solid #1a4035;
+      border-radius: 4px; padding: .25rem .6rem; display: inline-block;
+    }
+
+    textarea {
+      width: 100%; font-family: var(--mono); font-size: .8rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      padding: .75rem 1rem; resize: vertical; min-height: 120px;
+      outline: none; transition: border-color .2s;
+      line-height: 1.6;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .format-hint {
+      margin-top: .5rem; font-family: var(--mono); font-size: .72rem;
+      color: var(--muted); line-height: 1.8;
+    }
+
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 1rem;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .tab {
+      flex: 1; padding: .5rem; text-align: center;
+      font-family: var(--mono); font-size: .75rem; color: var(--muted);
+      cursor: pointer; background: var(--surface);
+      transition: background .2s, color .2s;
+      border-right: 1px solid var(--border);
+    }
+    .tab:last-child { border-right: none; }
+    .tab.active { background: var(--card); color: var(--accent); }
+
+    .btn-run {
+      width: 100%; margin-top: 1.25rem;
+      padding: .85rem; font-family: var(--mono); font-size: .85rem;
+      background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+      cursor: pointer; font-weight: 500; letter-spacing: .04em;
+      transition: background .2s, transform .1s;
+    }
+    .btn-run:hover { background: #4f8fff; }
+    .btn-run:active { transform: scale(.98); }
+    .btn-run:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+    /* result panel */
+    .result-panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); margin-top: 1.5rem;
+      overflow: hidden;
+    }
+    .result-header {
+      padding: .75rem 1.25rem; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .result-header span { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); display: inline-block; margin-right: .4rem;
+    }
+    .status-dot.ok   { background: var(--ok);   box-shadow: 0 0 6px var(--ok); }
+    .status-dot.warn { background: var(--warn);  box-shadow: 0 0 6px var(--warn); }
+    .status-dot.err  { background: #f87171;      box-shadow: 0 0 6px #f87171; }
+    .result-body { padding: 1.25rem; }
+
+    .mcis-stats {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 1px;
+      background: var(--border); border-radius: var(--radius); overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .stat-cell {
+      background: var(--surface); padding: .85rem;
+      text-align: center;
+    }
+    .stat-cell .val { font-family: var(--mono); font-size: 1.5rem; color: var(--accent); font-weight: 500; }
+    .stat-cell .lbl { font-size: .72rem; color: var(--muted); margin-top: .1rem; }
+
+    /* graph viz */
+    #viz-container {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1rem; margin-top: .5rem;
+    }
+    .viz-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: .5rem;
+      position: relative;
+    }
+    .viz-label {
+      position: absolute; top: .5rem; left: .75rem;
+      font-family: var(--mono); font-size: .7rem; color: var(--muted);
+    }
+    svg.graph-svg { width: 100%; height: 200px; display: block; }
+
+    .mapping-list {
+      margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .4rem;
+    }
+    .map-pair {
+      font-family: var(--mono); font-size: .75rem;
+      background: #0f1d35; border: 1px solid #2d4a7a;
+      border-radius: 4px; padding: .2rem .55rem; color: var(--accent);
+    }
+
+    .log-box {
+      margin-top: 1rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: .75rem 1rem;
+      font-family: var(--mono); font-size: .75rem; color: var(--muted);
+      max-height: 100px; overflow-y: auto; line-height: 1.8;
+    }
+
+    /* placeholder state */
+    .placeholder {
+      text-align: center; padding: 3rem 1rem; color: var(--muted);
+    }
+    .placeholder .ph-icon { font-size: 2.5rem; margin-bottom: .75rem; opacity: .4; }
+    .placeholder p { font-size: .85rem; }
+
+    /* spinner */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite; vertical-align: middle; margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── formula band ───────────────────────────────────────── */
+    .formula-band {
+      background: var(--surface); border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem; text-align: center;
+      font-family: var(--mono); font-size: .85rem; color: var(--muted);
+      letter-spacing: .03em;
+    }
+    .formula-band strong { color: var(--accent2); }
+
+    /* ─── footer ─────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border); padding: 2rem;
+      text-align: center; font-size: .8rem; color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ─── API url config bar ─────────────────────────────────── */
+    .api-config {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: .6rem 1rem;
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .api-config label { font-family: var(--mono); font-size: .75rem; color: var(--muted); white-space: nowrap; }
+    .api-config input {
+      flex: 1; min-width: 200px;
+      font-family: var(--mono); font-size: .78rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); padding: .3rem .6rem; outline: none;
+    }
+    .api-config input:focus { border-color: var(--accent); }
+    .api-badge {
+      font-family: var(--mono); font-size: .7rem; padding: .2rem .6rem;
+      border-radius: 4px; border: 1px solid; white-space: nowrap;
+    }
+    .api-badge.live   { border-color: #1a4035; color: var(--ok); background: #0a2018; }
+    .api-badge.mock   { border-color: #3d2d6e; color: var(--accent2); background: #1a1130; }
+
+    /* ─── responsive tweaks ──────────────────────────────────── */
+    @media (max-width: 600px) {
+      .mcis-stats { grid-template-columns: 1fr; }
+      #viz-container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── nav ─────────────────────────────────────────────────── -->
+<nav>
+  <a class="nav-brand" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <circle cx="5"  cy="5"  r="2.5"/>
+      <circle cx="19" cy="5"  r="2.5"/>
+      <circle cx="5"  cy="19" r="2.5"/>
+      <circle cx="19" cy="19" r="2.5"/>
+      <circle cx="12" cy="12" r="2"/>
+      <line x1="7.2" y1="5.9" x2="10.3" y2="11"/>
+      <line x1="16.8" y1="5.9" x2="13.7" y2="11"/>
+      <line x1="7.2" y1="18.1" x2="10.3" y2="13"/>
+      <line x1="16.8" y1="18.1" x2="13.7" y2="13"/>
+    </svg>
+    mcsolver
+  </a>
+  <a href="#docs">Applications</a>
+  <a href="#solver">Live Solver</a>
+  <a href="#algorithm">Algorithm</a>
+  <div class="nav-spacer"></div>
+  <a class="nav-gh" href="https://github.com/mcsolver/symsplit" target="_blank">github ↗</a>
+</nav>
+
+<!-- ── hero ────────────────────────────────────────────────── -->
+<div class="hero">
+  <p class="hero-eyebrow">SymSplit · PACMMOD Vol. 4 No. 3 · SIGMOD 2026</p>
+  <h1>Maximum Common<br /><em>Induced Subgraph</em></h1>
+  <p>Exact MCIS computation via dual symmetry breaking — exploiting both variable and value graph symmetries to drastically prune the branch-and-bound search space.</p>
+  <div class="hero-badges">
+    <span class="badge blue">Branch-and-Bound</span>
+    <span class="badge purple">Symmetry Breaking</span>
+    <span class="badge green">75.7× avg speedup over RRSplit</span>
+    <span class="badge">NP-hard · Exact · C++17</span>
+  </div>
+</div>
+
+<!-- ── formula band ─────────────────────────────────────────── -->
+<div class="formula-band">
+  Given graphs <strong>G</strong> and <strong>H</strong>, find the largest induced subgraphs
+  <strong>G'⊆G</strong> and <strong>H'⊆H</strong> such that <strong>G' ≅ H'</strong>
+</div>
+
+<!-- ── docs section ─────────────────────────────────────────── -->
+<section id="docs">
+  <div class="section-header">
+    <div class="section-label">Applications</div>
+    <h2>Where MCIS is used</h2>
+    <p>The Maximum Common Induced Subgraph problem underlies structural similarity in a broad range of domains. Below are the primary application areas.</p>
+  </div>
+
+  <div class="docs-grid">
+
+    <div class="doc-card">
+      <div class="doc-icon" style="background:#0f1d35">🧪</div>
+      <h3>Cheminformatics</h3>
+      <p>Molecules are naturally modelled as graphs — atoms as vertices, bonds as edges. MCIS computes the Maximum Common Substructure (MCS) between two compounds, enabling scaffold similarity search, virtual screening, and activity-cliff detection.</p>
+      <span class="doc-tag">drug discovery</span>
+      <span class="doc-tag">scaffold alignment</span>
+    </div>
+
+    <div class="doc-card">
+      <div class="doc-icon" style="background:#1a1130">🧬</div>
+      <h3>Bioinformatics</h3>
+      <p>Protein–protein interaction networks and metabolic pathways share conserved functional modules. MCIS identifies these conserved subnetworks across species, supporting ortholog detection and pathway alignment in comparative genomics.</p>
+      <span class="doc-tag">PPI networks</span>
+      <span class="doc-tag">pathway alignment</span>
+    </div>
+
+    <div class="doc-card">
+      <div class="doc-icon" style="background:#0a2018">🔍</div>
+      <h3>Pattern Recognition</h3>
+      <p>Shapes, scene graphs, and 3-D models can be encoded as attributed graphs. MCIS provides a principled structural similarity score used in image retrieval, document layout matching, and CAD model comparison.</p>
+      <span class="doc-tag">image retrieval</span>
+      <span class="doc-tag">scene graphs</span>
+    </div>
+
+    <div class="doc-card">
+      <div class="doc-icon" style="background:#1a1200">🌐</div>
+      <h3>Network Analysis</h3>
+      <p>Detecting recurring structural motifs in communication, social, or cybersecurity graphs often reduces to MCIS. Common subgraph size provides a robust graph-edit-distance lower bound and a symmetry-aware anomaly score.</p>
+      <span class="doc-tag">anomaly detection</span>
+      <span class="doc-tag">motif finding</span>
+    </div>
+
+    <div class="doc-card">
+      <div class="doc-icon" style="background:#0f1a35">⚙️</div>
+      <h3>Hardware Verification</h3>
+      <p>Equivalence checking between circuit netlists and cross-design re-use analysis both rely on subgraph isomorphism and common-subgraph detection. MCIS gives the largest structurally equivalent block between two netlists.</p>
+      <span class="doc-tag">circuit netlist</span>
+      <span class="doc-tag">formal verification</span>
+    </div>
+
+    <div class="doc-card">
+      <div class="doc-icon" style="background:#1a0f0f">🔐</div>
+      <h3>Software & Malware Analysis</h3>
+      <p>Control-flow graphs (CFGs) and call graphs of binaries can be compared via MCIS to detect code clones, plagiarism, or malware variants — even across compiler optimisations that alter the graph structure superficially.</p>
+      <span class="doc-tag">CFG matching</span>
+      <span class="doc-tag">clone detection</span>
+    </div>
+
+  </div>
+
+  <!-- algorithm strip -->
+  <div id="algorithm" class="algo-strip">
+    <div>
+      <h3>SymSplit Algorithm</h3>
+      <p>SymSplit extends the McSplit branch-and-bound framework with <em>dual symmetry breaking</em>: it detects modular symmetries based on local neighbourhood hashes in both the variable graph <code>G</code> and the value graph <code>H</code>, then prunes isomorphic subtrees during search. Variable symmetry (previously exploited by RRSplit) and value symmetry (novel contribution) are composed without violating completeness.</p>
+      <p style="margin-top:.75rem">Symmetry detection runs in <code>O(n²)</code> via Boost hash-based neighbourhood grouping. The resulting symmetry classes enable <code>O(1)</code> pruning lookups during BnB traversal.</p>
+    </div>
+    <div>
+      <h3>Comparison with prior work</h3>
+      <table class="sym-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Var. Sym.</th>
+            <th>Val. Sym.</th>
+            <th>Exact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>McSplit</td>   <td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+          <tr><td>RRSplit</td>   <td class="check">✓</td><td class="cross">✗</td><td class="check">✓</td></tr>
+          <tr><td>Trummer</td>   <td class="check">✓</td><td class="check">✓</td><td class="cross">✗</td></tr>
+          <tr><td><strong>SymSplit</strong></td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:.75rem; font-size:.82rem; color:var(--muted)">SymSplit achieves an average 75.7× speedup over RRSplit and solves more instances within any fixed branch count — with the strongest gains on high-symmetry graph datasets (BI, LV).</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── solver section ───────────────────────────────────────── -->
+<section id="solver">
+  <div class="section-header">
+    <div class="section-label">Interactive</div>
+    <h2>Live MCIS Solver</h2>
+    <p>Upload two graphs in edge-list format or paste them directly. The SymSplit backend will return the exact Maximum Common Induced Subgraph with vertex mapping.</p>
+  </div>
+
+  <!-- API config bar -->
+  <div class="api-config">
+    <label>API endpoint</label>
+    <input type="text" id="api-url" placeholder="http://localhost:8000/solve" />
+    <span class="api-badge mock" id="api-status">● mock mode</span>
+  </div>
+
+  <!-- tab bar -->
+  <div class="tab-bar">
+    <div class="tab active" data-tab="upload" onclick="switchTab('upload')">File upload</div>
+    <div class="tab" data-tab="paste"  onclick="switchTab('paste')">Paste text</div>
+  </div>
+
+  <!-- upload tab -->
+  <div id="tab-upload">
+    <div class="solver-layout">
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <span>G</span><strong>Graph G</strong>
+          </div>
+          <div class="panel-body">
+            <div class="upload-zone" id="zone-g">
+              <input type="file" accept=".txt,.csv,.edgelist,.graph" id="file-g" onchange="handleFile('g',this)" />
+              <div class="up-icon">📄</div>
+              <p>Click or drag a graph file</p>
+              <p style="font-size:.75rem; margin-top:.3rem">Edge list · one edge per line</p>
+              <div class="filename" id="fn-g" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <span>H</span><strong>Graph H</strong>
+          </div>
+          <div class="panel-body">
+            <div class="upload-zone" id="zone-h">
+              <input type="file" accept=".txt,.csv,.edgelist,.graph" id="file-h" onchange="handleFile('h',this)" />
+              <div class="up-icon">📄</div>
+              <p>Click or drag a graph file</p>
+              <p style="font-size:.75rem; margin-top:.3rem">Edge list · one edge per line</p>
+              <div class="filename" id="fn-h" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- paste tab -->
+  <div id="tab-paste" style="display:none">
+    <div class="solver-layout">
+      <div>
+        <label style="font-family:var(--mono); font-size:.75rem; color:var(--muted); display:block; margin-bottom:.4rem">Graph G</label>
+        <textarea id="paste-g" placeholder="0 1&#10;0 2&#10;1 3&#10;2 3"></textarea>
+        <div class="format-hint">
+          Format: one edge per line as &lt;u&gt; &lt;v&gt;<br/>
+          Vertices are integers starting from 0
+        </div>
+      </div>
+      <div>
+        <label style="font-family:var(--mono); font-size:.75rem; color:var(--muted); display:block; margin-bottom:.4rem">Graph H</label>
+        <textarea id="paste-h" placeholder="a b&#10;a c&#10;b d&#10;c d"></textarea>
+        <div class="format-hint">
+          Vertex labels can be integers or strings<br/>
+          Directed edges are treated as undirected
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-run" id="btn-run" onclick="runSolver()">Run SymSplit Solver →</button>
+
+  <!-- result -->
+  <div class="result-panel" id="result-panel">
+    <div class="result-header">
+      <span><span class="status-dot" id="sdot"></span><span id="status-text">Awaiting input</span></span>
+      <span id="time-label" style="display:none"></span>
+    </div>
+    <div class="result-body" id="result-body">
+      <div class="placeholder">
+        <div class="ph-icon">⬡</div>
+        <p>Upload or paste two graphs then click <strong>Run</strong></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── footer ────────────────────────────────────────────────── -->
+<footer>
+  <p>
+    <strong>SymSplit</strong> · Buddhi Kothalawala, Henning Koehler, Muhammad Farhan ·
+    <a href="https://doi.org/10.1145/3802005" target="_blank">PACMMOD Vol. 4 No. 3 (SIGMOD 2026)</a>
+  </p>
+  <p style="margin-top:.4rem">
+    <a href="https://github.com/mcsolver/symsplit" target="_blank">github.com/mcsolver/symsplit</a> ·
+    ARC Discovery Project DP210102273 · Australian National University
+  </p>
+</footer>
+
+<script>
+/* ─── state ──────────────────────────────────────────────── */
+const state = { gText: '', hText: '', tab: 'upload' };
+
+/* ─── API URL management ─────────────────────────────────── */
+const apiInput  = document.getElementById('api-url');
+const apiStatus = document.getElementById('api-status');
+
+// Try to restore saved URL
+const savedUrl = localStorage.getItem('mcis_api_url') || '';
+apiInput.value = savedUrl;
+updateApiStatus();
+
+apiInput.addEventListener('input', () => {
+  localStorage.setItem('mcis_api_url', apiInput.value.trim());
+  updateApiStatus();
+});
+
+function getApiUrl() { return apiInput.value.trim(); }
+function isLive() { return getApiUrl().startsWith('http'); }
+
+function updateApiStatus() {
+  if (isLive()) {
+    apiStatus.textContent = '● live';
+    apiStatus.className = 'api-badge live';
+  } else {
+    apiStatus.textContent = '● mock mode';
+    apiStatus.className = 'api-badge mock';
+  }
+}
+
+/* ─── tab switching ──────────────────────────────────────── */
+function switchTab(t) {
+  state.tab = t;
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === t));
+  document.getElementById('tab-upload').style.display = t === 'upload' ? '' : 'none';
+  document.getElementById('tab-paste').style.display  = t === 'paste'  ? '' : 'none';
+}
+
+/* ─── file handling ──────────────────────────────────────── */
+function handleFile(which, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fn = document.getElementById('fn-' + which);
+  fn.textContent = file.name; fn.style.display = 'inline-block';
+  const reader = new FileReader();
+  reader.onload = e => { state[which + 'Text'] = e.target.result; };
+  reader.readAsText(file);
+}
+
+/* drag-and-drop */
+['g','h'].forEach(w => {
+  const zone = document.getElementById('zone-' + w);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const inp = document.getElementById('file-' + w);
+    const dt = new DataTransfer(); dt.items.add(file);
+    inp.files = dt.files;
+    handleFile(w, inp);
+  });
+});
+
+/* ─── convert parsed graph to LAD format ────────────────── */
+function toLadFormat(parsed) {
+  const { vertices, edges } = parsed;
+  const idx = {};
+  vertices.forEach((v, i) => idx[v] = i);
+  const adj = Array.from({ length: vertices.length }, () => new Set());
+  edges.forEach(([u, v]) => {
+    adj[idx[u]].add(idx[v]);
+    adj[idx[v]].add(idx[u]);
+  });
+  let text = vertices.length + '\n';
+  adj.forEach(nbrs => {
+    const list = [...nbrs];
+    text += list.length + (list.length ? ' ' + list.join(' ') : '') + '\n';
+  });
+  return text;
+}
+
+/* ─── parse LAD format ───────────────────────────────────── */
+// First line: n (vertex count). Each subsequent line i: degree nbr1 nbr2 ...
+function parseLad(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const n = parseInt(lines[0]);
+  const vertices = Array.from({ length: n }, (_, i) => String(i));
+  const edges = [];
+  for (let i = 0; i < n && i + 1 < lines.length; i++) {
+    const parts = lines[i + 1].split(/\s+/).map(Number);
+    const degree = parts[0];
+    for (let j = 1; j <= degree; j++) {
+      const nbr = parts[j];
+      if (i < nbr) edges.push([String(i), String(nbr)]);
+    }
+  }
+  return { vertices, edges };
+}
+
+/* ─── parse edge list ────────────────────────────────────── */
+function parseEdgeList(text) {
+  const edges = [];
+  const vertices = new Set();
+  text.split('\n').forEach(line => {
+    line = line.trim();
+    if (!line || line.startsWith('#')) return;
+    const parts = line.split(/[\s,]+/);
+    if (parts.length >= 2) {
+      const [u, v] = [parts[0], parts[1]];
+      edges.push([u, v]);
+      vertices.add(u); vertices.add(v);
+    }
+  });
+  return { edges, vertices: [...vertices] };
+}
+
+/* ─── auto-detect format and parse ──────────────────────── */
+// LAD: first non-empty line is a lone integer (the vertex count)
+function parseGraph(text) {
+  const first = text.trim().split('\n').find(l => l.trim());
+  if (first && /^\d+$/.test(first.trim())) return parseLad(text);
+  return parseEdgeList(text);
+}
+
+/* ─── mock solver ────────────────────────────────────────── */
+function mockSolve(gText, hText) {
+  const G = parseEdgeList(gText);
+  const H = parseEdgeList(hText);
+  const size = Math.min(Math.floor(Math.random() * 3) + 2, G.vertices.length, H.vertices.length);
+  const mapping = [];
+  for (let i = 0; i < size; i++) mapping.push([G.vertices[i], H.vertices[i]]);
+  return {
+    mcis_size: size,
+    mapping,
+    time_ms: Math.round(Math.random() * 250 + 10),
+    branches: Math.round(Math.random() * 5000 + 100),
+    graph_g: G,
+    graph_h: H,
+    mock: true
+  };
+}
+
+/* ─── main solver ────────────────────────────────────────── */
+async function runSolver() {
+  // collect input
+  let gText = state.gText;
+  let hText = state.hText;
+  
+  if (state.tab === 'paste') {
+    gText = document.getElementById('paste-g').value.trim();
+    hText = document.getElementById('paste-h').value.trim();
+  }
+  console.log('Running solver with state:', gText, hText);
+  if (!gText || !hText) {
+    setStatus('warn', 'Please provide both graphs'); return;
+  }
+
+  const btn = document.getElementById('btn-run');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Running SymSplit…';
+  setStatus('', 'Running…');
+  document.getElementById('result-body').innerHTML = '<div class="placeholder"><div class="ph-icon">⏳</div><p>Solving…</p></div>';
+
+  const t0 = performance.now();
+  let result;
+
+  try {
+    console.log('Input G text:', gText);
+    console.log('Input H text:', hText);
+    console.log(isLive() ? 'Using live API at ' + getApiUrl() : 'Using mock solver (no API URL set)');
+    if (isLive()) {
+      console.log('[input] raw G text:', gText);
+      console.log('[input] raw H text:', hText);
+      const G = parseGraph(gText);
+      const H = parseGraph(hText);
+      const formData = new FormData();
+      const isLad = t => /^\d+$/.test(t.trim().split('\n')[0].trim());
+      formData.append('graph1', new Blob([isLad(gText) ? gText : toLadFormat(G)], { type: 'text/plain' }), 'graph1');
+      formData.append('graph2', new Blob([isLad(hText) ? hText : toLadFormat(H)], { type: 'text/plain' }), 'graph2');
+      formData.append('heuristic', 'min_max');
+      formData.append('format', 'lad');
+      formData.append('timeout', '100');
+      console.log('[input] G vertices:', G.vertices);
+      console.log('[input] H vertices:', H.vertices);
+      console.log('[input] graph1 blob:', isLad(gText) ? gText : toLadFormat(G));
+      console.log('[input] graph2 blob:', isLad(hText) ? hText : toLadFormat(H));
+      const resp = await fetch(getApiUrl(), { method: 'POST', body: formData });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      console.log('[output] raw API response:', JSON.stringify(data));
+      const mapping = data.mapping[0].map((g, i) => [G.vertices[g], H.vertices[data.mapping[1][i]]]);
+      console.log('[output] converted mapping:', mapping);
+      result = {
+        mcis_size: parseInt(data.solution_size),
+        mapping,
+        time_ms: (parseFloat(data.elapsed) * 1000).toFixed(2),
+        branches: parseInt(data.nodes),
+        graph_g: G,
+        graph_h: H,
+        mock: false
+      };
+    } else {
+      // simulate delay
+      await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
+      result = mockSolve(gText, hText);
+    }
+    const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+    renderResult(result, elapsed);
+  } catch (err) {
+    setStatus('err', 'Error: ' + err.message);
+    document.getElementById('result-body').innerHTML =
+      `<div class="placeholder"><div class="ph-icon">⚠️</div><p>${err.message}</p></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Run SymSplit Solver →';
+  }
+}
+
+/* ─── render result ──────────────────────────────────────── */
+function renderResult(res, elapsed) {
+  setStatus('ok', `MCIS size: ${res.mcis_size}${res.mock ? ' (mock)' : ''}`);
+  document.getElementById('time-label').textContent = elapsed + 's';
+  document.getElementById('time-label').style.display = '';
+
+  const matchedG = new Set(res.mapping.map(p => String(p[0])));
+  const matchedH = new Set(res.mapping.map(p => String(p[1])));
+
+  const pairsHtml = res.mapping.map(([u, v]) =>
+    `<span class="map-pair">${u} ↔ ${v}</span>`).join('');
+
+  document.getElementById('result-body').innerHTML = `
+    <div class="mcis-stats">
+      <div class="stat-cell"><div class="val">${res.mcis_size}</div><div class="lbl">MCIS size</div></div>
+      <div class="stat-cell"><div class="val">${res.time_ms ?? '—'}</div><div class="lbl">ms (solver)</div></div>
+      <div class="stat-cell"><div class="val">${res.branches != null ? formatNum(res.branches) : '—'}</div><div class="lbl">BnB branches</div></div>
+    </div>
+    <div id="viz-container">
+      <div class="viz-box"><span class="viz-label">Graph G</span><svg class="graph-svg" id="svg-g"></svg></div>
+      <div class="viz-box"><span class="viz-label">Graph H</span><svg class="graph-svg" id="svg-h"></svg></div>
+    </div>
+    <div style="margin-top:1rem; font-family:var(--mono); font-size:.75rem; color:var(--muted)">Vertex mapping (MCIS shown in blue):</div>
+    <div class="mapping-list">${pairsHtml}</div>
+    <div class="log-box">
+      SymSplit v1.0 · ${res.mock ? '[mock mode — no API URL set]' : '[live API]'}<br/>
+      |V(G)| = ${res.graph_g.vertices.length} · |E(G)| = ${res.graph_g.edges.length}<br/>
+      |V(H)| = ${res.graph_h.vertices.length} · |E(H)| = ${res.graph_h.edges.length}<br/>
+      MCIS size = ${res.mcis_size} · mapping = {${res.mapping.map(p=>p[0]+'→'+p[1]).join(', ')}}
+    </div>
+  `;
+
+  drawGraph('svg-g', res.graph_g, matchedG);
+  drawGraph('svg-h', res.graph_h, matchedH);
+}
+
+function formatNum(n) { return n >= 1000 ? (n/1000).toFixed(1)+'k' : n; }
+
+/* ─── D3 graph drawing ───────────────────────────────────── */
+function drawGraph(svgId, graph, highlighted) {
+  const el = document.getElementById(svgId);
+  if (!el) return;
+  const W = el.clientWidth || 260, H = 200;
+
+  const nodes = graph.vertices.map(id => ({ id: String(id) }));
+  const links = graph.edges.map(([s,t]) => ({ source: String(s), target: String(t) }));
+
+  const svg = d3.select('#' + svgId)
+    .attr('viewBox', `0 0 ${W} ${H}`);
+  svg.selectAll('*').remove();
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(45))
+    .force('charge', d3.forceManyBody().strength(-120))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(18))
+    .stop();
+
+  for (let i = 0; i < 200; i++) sim.tick();
+
+  // clamp
+  nodes.forEach(n => {
+    n.x = Math.max(18, Math.min(W-18, n.x));
+    n.y = Math.max(18, Math.min(H-18, n.y));
+  });
+
+  svg.append('g').selectAll('line').data(links).enter().append('line')
+    .attr('stroke', '#252b3b').attr('stroke-width', 1.5)
+    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+
+  const node = svg.append('g').selectAll('g').data(nodes).enter().append('g');
+
+  node.append('circle')
+    .attr('r', 10).attr('cx', d => d.x).attr('cy', d => d.y)
+    .attr('fill', d => highlighted.has(d.id) ? '#1a3a6e' : '#181c27')
+    .attr('stroke', d => highlighted.has(d.id) ? '#5f9fff' : '#252b3b')
+    .attr('stroke-width', d => highlighted.has(d.id) ? 2 : 1.2);
+
+  node.append('text')
+    .attr('x', d => d.x).attr('y', d => d.y)
+    .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+    .attr('font-family', "'IBM Plex Mono', monospace").attr('font-size', '9')
+    .attr('fill', d => highlighted.has(d.id) ? '#5f9fff' : '#64748b')
+    .text(d => d.id.length > 3 ? d.id.slice(0,3) : d.id);
+}
+
+/* ─── status helper ──────────────────────────────────────── */
+function setStatus(type, msg) {
+  const dot  = document.getElementById('sdot');
+  const text = document.getElementById('status-text');
+  dot.className  = 'status-dot' + (type ? ' '+type : '');
+  text.textContent = msg;
+}
+</script>
+</body>
+</html>
