@@ -367,21 +367,6 @@
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
-    /* ─── API url config bar ─────────────────────────────────── */
-    .api-config {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: .6rem 1rem;
-      display: flex; align-items: center; gap: .75rem;
-      margin-bottom: 1.5rem; flex-wrap: wrap;
-    }
-    .api-config label { font-family: var(--mono); font-size: .75rem; color: var(--muted); white-space: nowrap; }
-    .api-config input {
-      flex: 1; min-width: 200px;
-      font-family: var(--mono); font-size: .78rem;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 4px; color: var(--text); padding: .3rem .6rem; outline: none;
-    }
-    .api-config input:focus { border-color: var(--accent); }
     .api-badge {
       font-family: var(--mono); font-size: .7rem; padding: .2rem .6rem;
       border-radius: 4px; border: 1px solid; white-space: nowrap;
@@ -540,13 +525,6 @@
     <p>Upload two graphs in edge-list format or paste them directly. The SymSplit backend will return the exact Maximum Common Induced Subgraph with vertex mapping.</p>
   </div>
 
-  <!-- API config bar -->
-  <div class="api-config">
-    <label>API endpoint</label>
-    <input type="text" id="api-url" placeholder="http://localhost:8000/solve" />
-    <span class="api-badge mock" id="api-status">● mock mode</span>
-  </div>
-
   <!-- tab bar -->
   <div class="tab-bar">
     <div class="tab active" data-tab="upload" onclick="switchTab('upload')">File upload</div>
@@ -596,7 +574,17 @@
     <div class="solver-layout">
       <div>
         <label style="font-family:var(--mono); font-size:.75rem; color:var(--muted); display:block; margin-bottom:.4rem">Graph G</label>
-        <textarea id="paste-g" placeholder="0 1&#10;0 2&#10;1 3&#10;2 3"></textarea>
+        <textarea id="paste-g" placeholder="0 1&#10;0 2&#10;1 3&#10;2 3">10
+5 1 4 5 7 9
+4 0 2 3 8
+3 1 4 5
+2 1 6
+2 0 2
+2 0 2
+1 3
+1 0
+1 1
+1 0</textarea>
         <div class="format-hint">
           Format: one edge per line as &lt;u&gt; &lt;v&gt;<br/>
           Vertices are integers starting from 0
@@ -604,7 +592,17 @@
       </div>
       <div>
         <label style="font-family:var(--mono); font-size:.75rem; color:var(--muted); display:block; margin-bottom:.4rem">Graph H</label>
-        <textarea id="paste-h" placeholder="a b&#10;a c&#10;b d&#10;c d"></textarea>
+        <textarea id="paste-h" placeholder="a b&#10;a c&#10;b d&#10;c d">10
+5 1 2 5 7 8
+5 0 3 4 5 6
+4 0 3 4 7
+3 1 2 4
+3 1 2 3
+2 0 1
+2 1 9
+2 0 2
+1 0
+1 6</textarea>
         <div class="format-hint">
           Vertex labels can be integers or strings<br/>
           Directed edges are treated as undirected
@@ -647,31 +645,12 @@
 const state = { gText: '', hText: '', tab: 'upload' };
 
 /* ─── API URL management ─────────────────────────────────── */
-const apiInput  = document.getElementById('api-url');
-const apiStatus = document.getElementById('api-status');
-
-// Try to restore saved URL
-const savedUrl = localStorage.getItem('mcis_api_url') || '';
-apiInput.value = savedUrl;
-updateApiStatus();
-
-apiInput.addEventListener('input', () => {
-  localStorage.setItem('mcis_api_url', apiInput.value.trim());
-  updateApiStatus();
-});
-
-function getApiUrl() { return apiInput.value.trim(); }
-function isLive() { return getApiUrl().startsWith('http'); }
-
-function updateApiStatus() {
-  if (isLive()) {
-    apiStatus.textContent = '● live';
-    apiStatus.className = 'api-badge live';
-  } else {
-    apiStatus.textContent = '● mock mode';
-    apiStatus.className = 'api-badge mock';
-  }
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const isLocal = LOCAL_HOSTS.includes(window.location.hostname);
+function getApiUrl() {
+  return isLocal ? 'http://0.0.0.0:8000/solve' : 'https://symsplit.onrender.com/solve';
 }
+function isLive() { return true; }
 
 /* ─── tab switching ──────────────────────────────────────── */
 function switchTab(t) {
