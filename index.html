@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <style>
     /* ─── tokens ─────────────────────────────────────────────── */
@@ -379,9 +380,129 @@
       .mcis-stats { grid-template-columns: 1fr; }
       #viz-container { grid-template-columns: 1fr; }
     }
+
+    /* ─── doc read-more link ─────────────────────────────────── */
+    .doc-readmore {
+      display: inline-flex; align-items: center; gap: .3rem;
+      margin-top: .9rem;
+      font-family: var(--mono); font-size: .72rem;
+      color: var(--accent); text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color .2s;
+      cursor: pointer; background: none; border-left: none;
+      border-right: none; border-top: none; padding: 0;
+    }
+    .doc-readmore:hover { border-bottom-color: var(--accent); }
+
+    /* ─── doc modal ──────────────────────────────────────────── */
+    .doc-modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(4px);
+      display: flex; justify-content: flex-end;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s;
+    }
+    .doc-modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .doc-modal {
+      width: min(680px, 100vw);
+      height: 100vh; overflow-y: auto;
+      background: var(--card); border-left: 1px solid var(--border);
+      padding: 2.5rem 2.5rem 4rem;
+      transform: translateX(40px);
+      transition: transform .25s;
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .doc-modal-overlay.open .doc-modal { transform: translateX(0); }
+
+    .doc-modal-close {
+      align-self: flex-end; margin-bottom: 1.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--muted);
+      font-family: var(--mono); font-size: .75rem;
+      padding: .3rem .8rem; cursor: pointer;
+      transition: color .2s, border-color .2s;
+    }
+    .doc-modal-close:hover { color: var(--text); border-color: var(--accent); }
+
+    /* markdown render styles */
+    .doc-modal-body { flex: 1; }
+    .doc-modal-body h1 {
+      font-family: var(--serif); font-size: 1.75rem; color: #fff;
+      margin-bottom: 1rem; line-height: 1.2;
+    }
+    .doc-modal-body h2 {
+      font-family: var(--serif); font-size: 1.25rem; color: #fff;
+      margin: 2rem 0 .6rem; padding-bottom: .4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .doc-modal-body h3 {
+      font-size: 1rem; font-weight: 500; color: var(--text);
+      margin: 1.5rem 0 .4rem;
+    }
+    .doc-modal-body p  { color: var(--muted); margin-bottom: .9rem; font-size: .9rem; line-height: 1.75; }
+    .doc-modal-body ul, .doc-modal-body ol {
+      color: var(--muted); padding-left: 1.4rem; margin-bottom: .9rem;
+    }
+    .doc-modal-body li { font-size: .9rem; line-height: 1.7; margin-bottom: .25rem; }
+    .doc-modal-body code {
+      font-family: var(--mono); font-size: .8rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: .1rem .35rem; color: var(--accent);
+    }
+    .doc-modal-body pre {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.25rem;
+      overflow-x: auto; margin-bottom: 1rem;
+    }
+    .doc-modal-body pre code {
+      background: none; border: none; padding: 0;
+      font-size: .8rem; color: var(--text);
+    }
+    .doc-modal-body blockquote {
+      border-left: 3px solid var(--accent2);
+      margin: 0 0 1rem; padding: .6rem 1rem;
+      background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .doc-modal-body blockquote p { margin: 0; color: var(--accent2); }
+    .doc-modal-body a { color: var(--accent); text-decoration: none; }
+    .doc-modal-body a:hover { text-decoration: underline; }
+    .doc-modal-body strong { color: var(--text); font-weight: 500; }
+    .doc-modal-body hr {
+      border: none; border-top: 1px solid var(--border); margin: 1.5rem 0;
+    }
+    .doc-modal-loading {
+      color: var(--muted); font-family: var(--mono); font-size: .8rem;
+      padding: 2rem 0;
+    }
+
+    /* ─── dev banner ─────────────────────────────────────────── */
+    .dev-banner {
+      background: #1a1200; border-bottom: 1px solid #3d2d00;
+      padding: .4rem 2rem;
+      display: flex; align-items: center; justify-content: center; gap: .6rem;
+      font-family: var(--mono); font-size: .72rem; color: var(--warn);
+      letter-spacing: .03em;
+    }
+    .dev-banner-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--warn); opacity: .8;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .8; }
+      50%       { opacity: .25; }
+    }
   </style>
 </head>
 <body>
+
+<!-- ── dev banner ───────────────────────────────────────────── -->
+<div class="dev-banner">
+  <span class="dev-banner-dot"></span>
+  This site is under active development — features and results may change without notice.
+</div>
 
 <!-- ── nav ─────────────────────────────────────────────────── -->
 <nav>
@@ -441,6 +562,7 @@
       <p>Molecules are naturally modelled as graphs — atoms as vertices, bonds as edges. MCIS computes the Maximum Common Substructure (MCS) between two compounds, enabling scaffold similarity search, virtual screening, and activity-cliff detection.</p>
       <span class="doc-tag">drug discovery</span>
       <span class="doc-tag">scaffold alignment</span>
+      <br/><button class="doc-readmore" onclick="openDoc('cheminformatics')">Read more →</button>
     </div>
 
     <div class="doc-card">
@@ -449,6 +571,7 @@
       <p>Protein–protein interaction networks and metabolic pathways share conserved functional modules. MCIS identifies these conserved subnetworks across species, supporting ortholog detection and pathway alignment in comparative genomics.</p>
       <span class="doc-tag">PPI networks</span>
       <span class="doc-tag">pathway alignment</span>
+      <br/><button class="doc-readmore" onclick="openDoc('bioinformatics')">Read more →</button>
     </div>
 
     <div class="doc-card">
@@ -457,6 +580,7 @@
       <p>Shapes, scene graphs, and 3-D models can be encoded as attributed graphs. MCIS provides a principled structural similarity score used in image retrieval, document layout matching, and CAD model comparison.</p>
       <span class="doc-tag">image retrieval</span>
       <span class="doc-tag">scene graphs</span>
+      <br/><button class="doc-readmore" onclick="openDoc('pattern-recognition')">Read more →</button>
     </div>
 
     <div class="doc-card">
@@ -465,6 +589,7 @@
       <p>Detecting recurring structural motifs in communication, social, or cybersecurity graphs often reduces to MCIS. Common subgraph size provides a robust graph-edit-distance lower bound and a symmetry-aware anomaly score.</p>
       <span class="doc-tag">anomaly detection</span>
       <span class="doc-tag">motif finding</span>
+      <br/><button class="doc-readmore" onclick="openDoc('network-analysis')">Read more →</button>
     </div>
 
     <div class="doc-card">
@@ -473,6 +598,7 @@
       <p>Equivalence checking between circuit netlists and cross-design re-use analysis both rely on subgraph isomorphism and common-subgraph detection. MCIS gives the largest structurally equivalent block between two netlists.</p>
       <span class="doc-tag">circuit netlist</span>
       <span class="doc-tag">formal verification</span>
+      <br/><button class="doc-readmore" onclick="openDoc('hardware-verification')">Read more →</button>
     </div>
 
     <div class="doc-card">
@@ -481,6 +607,7 @@
       <p>Control-flow graphs (CFGs) and call graphs of binaries can be compared via MCIS to detect code clones, plagiarism, or malware variants — even across compiler optimisations that alter the graph structure superficially.</p>
       <span class="doc-tag">CFG matching</span>
       <span class="doc-tag">clone detection</span>
+      <br/><button class="doc-readmore" onclick="openDoc('software-analysis')">Read more →</button>
     </div>
 
   </div>
@@ -936,6 +1063,56 @@ function setStatus(type, msg) {
   dot.className  = 'status-dot' + (type ? ' '+type : '');
   text.textContent = msg;
 }
+</script>
+
+<!-- ── doc modal ────────────────────────────────────────────── -->
+<div class="doc-modal-overlay" id="doc-modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="doc-modal" id="doc-modal">
+    <button class="doc-modal-close" onclick="closeDoc()">✕ close</button>
+    <div class="doc-modal-body" id="doc-modal-body">
+      <p class="doc-modal-loading">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── doc modal ──────────────────────────────────────────────── */
+const docCache = {};
+
+async function openDoc(slug) {
+  const overlay = document.getElementById('doc-modal-overlay');
+  const body    = document.getElementById('doc-modal-body');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  if (docCache[slug]) {
+    body.innerHTML = docCache[slug];
+    return;
+  }
+
+  body.innerHTML = '<p class="doc-modal-loading">Loading…</p>';
+  try {
+    const res  = await fetch(`docs/${slug}.md`);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const text = await res.text();
+    const html = marked.parse(text);
+    docCache[slug] = html;
+    body.innerHTML = html;
+  } catch (err) {
+    body.innerHTML = `<p class="doc-modal-loading">Could not load docs/${slug}.md — ${err.message}</p>`;
+  }
+}
+
+function closeDoc() {
+  document.getElementById('doc-modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('doc-modal-overlay')) closeDoc();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDoc(); });
 </script>
 </body>
 </html>
