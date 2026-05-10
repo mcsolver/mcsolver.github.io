@@ -47,6 +47,39 @@ Embedded firmware for IoT devices is often derived from a common SDK with vendor
 - Detects whether a security-critical function (e.g., TLS handshake) was modified
 - Supports firmware provenance attribution
 
+## Example Graph Pair
+
+**If-else diamond CFG vs extended diamond** — the four-block diamond is the shared control-flow pattern.
+
+Graph G (if-else diamond — entry block 1 branches to true-block 2 and false-block 3, both merge at block 4):
+
+```
+c If-else diamond CFG
+c entry(1) -> true(2), false(3) -> merge(4)
+p edge 4 4
+e 1 2
+e 1 3
+e 2 4
+e 3 4
+```
+
+Graph H (same diamond with an extra basic block 5 appended after the merge):
+
+```
+c Extended diamond CFG with extra block after merge
+c entry(1) -> true(2), false(3) -> merge(4) -> exit(5)
+p edge 5 5
+e 1 2
+e 1 3
+e 2 4
+e 3 4
+e 4 5
+```
+
+Expected MCIS size: **4** (the original diamond; block 5 is the added code in H).
+
+---
+
 ## Robustness to Obfuscation
 
 | Obfuscation technique | Effect on CFG | MCIS impact |

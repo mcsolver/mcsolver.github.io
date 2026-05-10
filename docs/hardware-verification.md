@@ -51,6 +51,35 @@ A typical netlist graph encoding for MCIS:
 
 For unlabelled MCIS (as in SymSplit), labels are dropped and structural isomorphism alone is matched. Label-aware variants pre-filter vertex compatibility.
 
+## Example Graph Pair
+
+**Linear 4-gate pipeline vs pipeline with bypass wire** — three shared gates form the MCIS; the bypass is the design difference.
+
+Graph G (straight pipeline — gates 1→2→3→4):
+
+```
+c Linear 4-gate pipeline
+p edge 4 3
+e 1 2
+e 2 3
+e 3 4
+```
+
+Graph H (same pipeline plus a bypass wire from gate 1 directly to gate 3):
+
+```
+c Pipeline with bypass wire (gate 1 to gate 3)
+p edge 4 4
+e 1 2
+e 2 3
+e 3 4
+e 1 3
+```
+
+Expected MCIS size: **3** (gates 2, 3, 4 — the segment unaffected by the bypass).
+
+---
+
 ## Scale and Practicality
 
 Industrial netlists can contain millions of gates. Exact MCIS is applied at the **block level** (hundreds to low thousands of gates) after partitioning. SymSplit's symmetry-breaking is highly effective on regular structures such as arithmetic units, memory arrays, and symmetric bus fabrics.

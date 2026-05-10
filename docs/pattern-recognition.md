@@ -38,6 +38,37 @@ Page layouts can be encoded as graphs of text blocks, images, and spatial relati
 - Cross-document structural diff for version control
 - Style transfer by identifying common layout skeletons
 
+## Example Graph Pair
+
+**Linear shape vs branched shape** — the 5-node spine is the shared structural element.
+
+Graph G (path of 5 — a linear object skeleton):
+
+```
+5
+1 1
+2 0 2
+2 1 3
+2 2 4
+1 3
+```
+
+Graph H (same path with one branch at vertex 2 — a T-shaped object):
+
+```
+6
+1 1
+2 0 2
+3 1 3 5
+2 2 4
+1 3
+1 2
+```
+
+Expected MCIS size: **5** (the shared path, vertex 5 of H is the branch not present in G).
+
+---
+
 ## Why Graph Representations?
 
 Unlike appearance-based features, graph representations are:

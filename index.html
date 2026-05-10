@@ -477,6 +477,39 @@
       padding: 2rem 0;
     }
 
+    /* ─── example footer inside modal ───────────────────────── */
+    .doc-example-footer {
+      margin-top: 2.5rem; padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .doc-example-footer p {
+      font-family: var(--mono); font-size: .72rem;
+      color: var(--muted); margin-bottom: 1rem;
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    .doc-example-graphs {
+      display: grid; grid-template-columns: 1fr 1fr; gap: .75rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 480px) { .doc-example-graphs { grid-template-columns: 1fr; } }
+    .doc-example-graph label {
+      display: block; font-family: var(--mono); font-size: .7rem;
+      color: var(--accent); margin-bottom: .35rem;
+    }
+    .doc-example-graph pre {
+      margin: 0; font-size: .75rem !important;
+      max-height: 160px; overflow-y: auto;
+    }
+    .btn-try-solver {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-family: var(--mono); font-size: .78rem;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius);
+      padding: .45rem 1.1rem; cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn-try-solver:hover { opacity: .85; }
+
     /* ─── dev banner ─────────────────────────────────────────── */
     .dev-banner {
       background: #1a1200; border-bottom: 1px solid #3d2d00;
@@ -713,8 +746,8 @@
 1 1
 1 0</textarea>
         <div class="format-hint">
-          Format: one edge per line as &lt;u&gt; &lt;v&gt;<br/>
-          Vertices are integers starting from 0
+          Auto-detected: <strong>LAD</strong> (first line = vertex count) · <strong>DIMACS</strong> (<code>p edge N M</code>) · <strong>edge list</strong> (u v per line)<br/>
+          Vertex labels can be integers or strings
         </div>
       </div>
       <div>
@@ -731,8 +764,8 @@
 1 0
 1 6</textarea>
         <div class="format-hint">
-          Vertex labels can be integers or strings<br/>
-          Directed edges are treated as undirected
+          Auto-detected: <strong>LAD</strong> (first line = vertex count) · <strong>DIMACS</strong> (<code>p edge N M</code>) · <strong>edge list</strong> (u v per line)<br/>
+          Vertex labels can be integers or strings
         </div>
       </div>
     </div>
@@ -775,7 +808,7 @@ const state = { gText: '', hText: '', tab: 'upload' };
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
 const isLocal = LOCAL_HOSTS.includes(window.location.hostname);
 function getApiUrl() {
-  return isLocal ? 'http://0.0.0.0:8000/solve' : 'https://symsplit.onrender.com/solve';
+  return isLocal ? 'http://localhost:8000/solve' : 'https://symsplit.onrender.com/solve';
 }
 function isLive() { return true; }
 
@@ -867,9 +900,40 @@ function parseEdgeList(text) {
   return { edges, vertices: [...vertices] };
 }
 
+/* ─── parse DIMACS format ────────────────────────────────── */
+// Lines starting with 'c' are comments.
+// 'p edge N M' declares N vertices and M edges.
+// 'e U V' declares an edge (1-indexed).
+// 'n ID LABEL' (extension) assigns a display label to a vertex.
+function parseDimacs(text) {
+  const edges = [];
+  const labelMap = {};   // 1-based id → display label
+  let n = 0;
+  text.split('\n').forEach(line => {
+    line = line.trim();
+    if (!line || line.startsWith('c')) return;
+    const parts = line.split(/\s+/);
+    if (parts[0] === 'p') { n = parseInt(parts[2]); }
+    if (parts[0] === 'n') { labelMap[parseInt(parts[1])] = parts[2]; }
+    if (parts[0] === 'e') {
+      // Always use 0-based integer strings as unique vertex IDs
+      edges.push([String(parseInt(parts[1]) - 1), String(parseInt(parts[2]) - 1)]);
+    }
+  });
+  const vertices = Array.from({ length: n }, (_, i) => String(i));
+  // vertexLabels: '0' → 'N', '1' → 'C', ... (only populated if n-lines present)
+  const vertexLabels = Object.keys(labelMap).length
+    ? Object.fromEntries(Object.entries(labelMap).map(([k, v]) => [String(k - 1), v]))
+    : null;
+  return { vertices, edges, vertexLabels };
+}
+
 /* ─── auto-detect format and parse ──────────────────────── */
-// LAD: first non-empty line is a lone integer (the vertex count)
+// DIMACS: contains a 'p edge ...' problem line
+// LAD:    first non-empty line is a lone integer
+// Otherwise: edge list
 function parseGraph(text) {
+  if (/^\s*p\s+edge\s+/m.test(text)) return parseDimacs(text);
   const first = text.trim().split('\n').find(l => l.trim());
   if (first && /^\d+$/.test(first.trim())) return parseLad(text);
   return parseEdgeList(text);
@@ -941,7 +1005,8 @@ async function runSolver() {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       console.log('[output] raw API response:', JSON.stringify(data));
-      const mapping = data.mapping[0].map((g, i) => [G.vertices[g], H.vertices[data.mapping[1][i]]]);
+      const vLabel = (graph, idx) => graph.vertexLabels?.[String(idx)] ?? graph.vertices[idx];
+      const mapping = data.mapping[0].map((g, i) => [vLabel(G, g), vLabel(H, data.mapping[1][i])]);
       console.log('[output] converted mapping:', mapping);
       result = {
         mcis_size: parseInt(data.solution_size),
@@ -1053,7 +1118,7 @@ function drawGraph(svgId, graph, highlighted) {
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
     .attr('font-family', "'IBM Plex Mono', monospace").attr('font-size', '9')
     .attr('fill', d => highlighted.has(d.id) ? '#5f9fff' : '#64748b')
-    .text(d => d.id.length > 3 ? d.id.slice(0,3) : d.id);
+    .text(d => { const lbl = graph.vertexLabels?.[d.id] ?? d.id; return lbl.length > 3 ? lbl.slice(0,3) : lbl; });
 }
 
 /* ─── status helper ──────────────────────────────────────── */
@@ -1077,7 +1142,73 @@ function setStatus(type, msg) {
 
 <script>
 /* ─── doc modal ──────────────────────────────────────────────── */
-const docCache = {};
+const DOC_CACHE_VERSION = '4';
+const docCache = JSON.parse(sessionStorage.getItem('docCache_v' + DOC_CACHE_VERSION) || '{}');
+function saveDocCache() {
+  try { sessionStorage.setItem('docCache_v' + DOC_CACHE_VERSION, JSON.stringify(docCache)); } catch(_) {}
+}
+
+/* Example graph pairs keyed by slug */
+const DOC_EXAMPLES = {
+  'cheminformatics': {
+    label: 'Adenine vs Guanine (DNA purine bases)',
+    note:  'MCIS = 10 — full purine bicyclic core + C6 pendant. Only the C2 amino (N2) in guanine is unmatched.',
+    g: `c Adenine (C5H5N5) - heavy atoms only\np edge 10 11\nn 1 N\nn 2 C\nn 3 N\nn 4 C\nn 5 C\nn 6 C\nn 7 N\nn 8 C\nn 9 N\nn 10 N\ne 1 2\ne 2 3\ne 3 4\ne 4 5\ne 5 6\ne 6 1\ne 4 9\ne 9 8\ne 8 7\ne 7 5\ne 6 10`,
+    h: `c Guanine (C5H5N5O) - heavy atoms only\np edge 11 12\nn 1 N\nn 2 C\nn 3 N\nn 4 C\nn 5 C\nn 6 C\nn 7 N\nn 8 C\nn 9 N\nn 10 O\nn 11 N\ne 1 2\ne 2 3\ne 3 4\ne 4 5\ne 5 6\ne 6 1\ne 4 9\ne 9 8\ne 8 7\ne 7 5\ne 6 10\ne 2 11`
+  },
+  'bioinformatics': {
+    label: 'Protein complex (K₄) vs K₄ + interactor',
+    note:  'MCIS = 4 — the conserved clique; protein 5 is species-specific.',
+    g: `c Conserved protein complex - 4 proteins fully connected\np edge 4 6\ne 1 2\ne 1 3\ne 1 4\ne 2 3\ne 2 4\ne 3 4`,
+    h: `c K4 complex + species-specific interactor (protein 5)\np edge 5 7\ne 1 2\ne 1 3\ne 1 4\ne 2 3\ne 2 4\ne 3 4\ne 1 5`
+  },
+  'pattern-recognition': {
+    label: 'Linear shape vs branched shape',
+    note:  'The 5-node path (spine of both shapes) is the common substructure.',
+    g: `5\n1 1\n2 0 2\n2 1 3\n2 2 4\n1 3`,
+    h: `6\n1 1\n2 0 2\n3 1 3 5\n2 2 4\n1 3\n1 2`
+  },
+  'network-analysis': {
+    label: 'Communication star K₁,₅ vs star with inter-client links',
+    note:  'MCIS = 6 — the full star; inter-client ring edges are extra structure.',
+    g: `c Communication star - hub(1) with 5 clients\np edge 6 5\ne 1 2\ne 1 3\ne 1 4\ne 1 5\ne 1 6`,
+    h: `c Star with inter-client communication links\np edge 6 10\ne 1 2\ne 1 3\ne 1 4\ne 1 5\ne 1 6\ne 2 3\ne 3 4\ne 4 5\ne 5 6\ne 6 2`
+  },
+  'hardware-verification': {
+    label: 'Linear 4-gate pipeline vs pipeline with bypass',
+    note:  'MCIS = 3 — gates 2,3,4 are shared; the bypass changes gate 1\'s connectivity.',
+    g: `c Linear 4-gate pipeline\np edge 4 3\ne 1 2\ne 2 3\ne 3 4`,
+    h: `c Pipeline with bypass wire (gate 1 to gate 3)\np edge 4 4\ne 1 2\ne 2 3\ne 3 4\ne 1 3`
+  },
+  'software-analysis': {
+    label: 'If-else diamond CFG vs extended diamond',
+    note:  'MCIS = 4 — the original diamond; block 5 is the added code.',
+    g: `c If-else diamond CFG\nc entry(1) -> true(2), false(3) -> merge(4)\np edge 4 4\ne 1 2\ne 1 3\ne 2 4\ne 3 4`,
+    h: `c Extended diamond CFG with extra block after merge\nc entry(1) -> true(2), false(3) -> merge(4) -> exit(5)\np edge 5 5\ne 1 2\ne 1 3\ne 2 4\ne 3 4\ne 4 5`
+  }
+};
+
+function buildExampleFooter(slug) {
+  const ex = DOC_EXAMPLES[slug];
+  if (!ex) return '';
+  return `
+    <div class="doc-example-footer">
+      <p>Try it — example graph pair</p>
+      <div style="font-family:var(--mono);font-size:.75rem;color:var(--muted);margin-bottom:.75rem">${ex.label}</div>
+      <div class="doc-example-graphs">
+        <div class="doc-example-graph">
+          <label>Graph G</label>
+          <pre><code>${ex.g}</code></pre>
+        </div>
+        <div class="doc-example-graph">
+          <label>Graph H</label>
+          <pre><code>${ex.h}</code></pre>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-bottom:1rem">${ex.note}</div>
+      <button class="btn-try-solver" onclick="loadExample('${slug}')">Try in solver →</button>
+    </div>`;
+}
 
 async function openDoc(slug) {
   const overlay = document.getElementById('doc-modal-overlay');
@@ -1095,12 +1226,23 @@ async function openDoc(slug) {
     const res  = await fetch(`docs/${slug}.md`);
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const text = await res.text();
-    const html = marked.parse(text);
+    const html = marked.parse(text) + buildExampleFooter(slug);
     docCache[slug] = html;
+    saveDocCache();
     body.innerHTML = html;
   } catch (err) {
     body.innerHTML = `<p class="doc-modal-loading">Could not load docs/${slug}.md — ${err.message}</p>`;
   }
+}
+
+function loadExample(slug) {
+  const ex = DOC_EXAMPLES[slug];
+  if (!ex) return;
+  document.getElementById('paste-g').value = ex.g;
+  document.getElementById('paste-h').value = ex.h;
+  closeDoc();
+  switchTab('paste');
+  document.getElementById('solver').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function closeDoc() {

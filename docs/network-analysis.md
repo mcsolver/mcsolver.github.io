@@ -44,6 +44,43 @@ This lower bound is tight and useful for pruning in large-scale GED computations
 
 Power grids, water systems, and transport networks can be compared before and after a failure event. The MCIS of the pre- and post-failure graphs identifies the **resilient subgraph** — the portion of the network that remained structurally intact.
 
+## Example Graph Pair
+
+**Communication star K₁,₅ vs star with inter-client links** — the hub-and-spoke skeleton is the common motif.
+
+Graph G (pure star — hub node 1, five client nodes 2–6):
+
+```
+c Communication star - hub(1) with 5 clients
+p edge 6 5
+e 1 2
+e 1 3
+e 1 4
+e 1 5
+e 1 6
+```
+
+Graph H (same star, but clients also form a ring: 2-3-4-5-6-2):
+
+```
+c Star with inter-client communication links
+p edge 6 10
+e 1 2
+e 1 3
+e 1 4
+e 1 5
+e 1 6
+e 2 3
+e 3 4
+e 4 5
+e 5 6
+e 6 2
+```
+
+Expected MCIS size: **6** (the full star; the inter-client ring edges are extra structure in H).
+
+---
+
 ## Symmetry in Networks
 
 Many engineered networks (e.g., data-centre topologies, ring networks) contain high structural symmetry. SymSplit's dual symmetry breaking is particularly effective in these cases, often yielding order-of-magnitude speedups over baseline McSplit.
