@@ -144,12 +144,6 @@
     }
     .doc-card h3 { font-size: .95rem; font-weight: 500; color: #fff; margin-bottom: .4rem; }
     .doc-card p  { font-size: .85rem; color: var(--muted); line-height: 1.6; }
-    .doc-tag {
-      display: inline-block; margin-top: .8rem;
-      font-family: var(--mono); font-size: .68rem;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 4px; padding: .15rem .5rem; color: var(--muted);
-    }
 
     /* ─── algo explainer strip ───────────────────────────────── */
     .algo-strip {
@@ -379,9 +373,33 @@
       .mcis-stats { grid-template-columns: 1fr; }
       #viz-container { grid-template-columns: 1fr; }
     }
+
+    /* ─── dev banner ─────────────────────────────────────────── */
+    .dev-banner {
+      background: #1a1200; border-bottom: 1px solid #3d2d00;
+      padding: .4rem 2rem;
+      display: flex; align-items: center; justify-content: center; gap: .6rem;
+      font-family: var(--mono); font-size: .72rem; color: var(--warn);
+      letter-spacing: .03em;
+    }
+    .dev-banner-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--warn); opacity: .8;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .8; }
+      50%       { opacity: .25; }
+    }
   </style>
 </head>
 <body>
+
+<!-- ── dev banner ───────────────────────────────────────────── -->
+<div class="dev-banner">
+  <span class="dev-banner-dot"></span>
+  This site is under active development — features and results may change without notice.
+</div>
 
 <!-- ── nav ─────────────────────────────────────────────────── -->
 <nav>
@@ -438,49 +456,31 @@
     <div class="doc-card">
       <div class="doc-icon" style="background:#0f1d35">🧪</div>
       <h3>Cheminformatics</h3>
-      <p>Molecules are naturally modelled as graphs — atoms as vertices, bonds as edges. MCIS computes the Maximum Common Substructure (MCS) between two compounds, enabling scaffold similarity search, virtual screening, and activity-cliff detection.</p>
-      <span class="doc-tag">drug discovery</span>
-      <span class="doc-tag">scaffold alignment</span>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#1a1130">🧬</div>
       <h3>Bioinformatics</h3>
-      <p>Protein–protein interaction networks and metabolic pathways share conserved functional modules. MCIS identifies these conserved subnetworks across species, supporting ortholog detection and pathway alignment in comparative genomics.</p>
-      <span class="doc-tag">PPI networks</span>
-      <span class="doc-tag">pathway alignment</span>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#0a2018">🔍</div>
       <h3>Pattern Recognition</h3>
-      <p>Shapes, scene graphs, and 3-D models can be encoded as attributed graphs. MCIS provides a principled structural similarity score used in image retrieval, document layout matching, and CAD model comparison.</p>
-      <span class="doc-tag">image retrieval</span>
-      <span class="doc-tag">scene graphs</span>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#1a1200">🌐</div>
       <h3>Network Analysis</h3>
-      <p>Detecting recurring structural motifs in communication, social, or cybersecurity graphs often reduces to MCIS. Common subgraph size provides a robust graph-edit-distance lower bound and a symmetry-aware anomaly score.</p>
-      <span class="doc-tag">anomaly detection</span>
-      <span class="doc-tag">motif finding</span>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#0f1a35">⚙️</div>
       <h3>Hardware Verification</h3>
-      <p>Equivalence checking between circuit netlists and cross-design re-use analysis both rely on subgraph isomorphism and common-subgraph detection. MCIS gives the largest structurally equivalent block between two netlists.</p>
-      <span class="doc-tag">circuit netlist</span>
-      <span class="doc-tag">formal verification</span>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#1a0f0f">🔐</div>
-      <h3>Software & Malware Analysis</h3>
-      <p>Control-flow graphs (CFGs) and call graphs of binaries can be compared via MCIS to detect code clones, plagiarism, or malware variants — even across compiler optimisations that alter the graph structure superficially.</p>
-      <span class="doc-tag">CFG matching</span>
-      <span class="doc-tag">clone detection</span>
+      <h3>Software &amp; Malware Analysis</h3>
     </div>
 
   </div>
@@ -586,8 +586,8 @@
 1 1
 1 0</textarea>
         <div class="format-hint">
-          Format: one edge per line as &lt;u&gt; &lt;v&gt;<br/>
-          Vertices are integers starting from 0
+          Auto-detected: <strong>LAD</strong> (first line = vertex count) · <strong>DIMACS</strong> (<code>p edge N M</code>) · <strong>edge list</strong> (u v per line)<br/>
+          Vertex labels can be integers or strings
         </div>
       </div>
       <div>
@@ -604,8 +604,8 @@
 1 0
 1 6</textarea>
         <div class="format-hint">
-          Vertex labels can be integers or strings<br/>
-          Directed edges are treated as undirected
+          Auto-detected: <strong>LAD</strong> (first line = vertex count) · <strong>DIMACS</strong> (<code>p edge N M</code>) · <strong>edge list</strong> (u v per line)<br/>
+          Vertex labels can be integers or strings
         </div>
       </div>
     </div>
@@ -648,7 +648,7 @@ const state = { gText: '', hText: '', tab: 'upload' };
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
 const isLocal = LOCAL_HOSTS.includes(window.location.hostname);
 function getApiUrl() {
-  return isLocal ? 'http://0.0.0.0:8000/solve' : 'https://symsplit.onrender.com/solve';
+  return isLocal ? 'http://localhost:8000/solve' : 'https://symsplit.onrender.com/solve';
 }
 function isLive() { return true; }
 
@@ -740,9 +740,40 @@ function parseEdgeList(text) {
   return { edges, vertices: [...vertices] };
 }
 
+/* ─── parse DIMACS format ────────────────────────────────── */
+// Lines starting with 'c' are comments.
+// 'p edge N M' declares N vertices and M edges.
+// 'e U V' declares an edge (1-indexed).
+// 'n ID LABEL' (extension) assigns a display label to a vertex.
+function parseDimacs(text) {
+  const edges = [];
+  const labelMap = {};   // 1-based id → display label
+  let n = 0;
+  text.split('\n').forEach(line => {
+    line = line.trim();
+    if (!line || line.startsWith('c')) return;
+    const parts = line.split(/\s+/);
+    if (parts[0] === 'p') { n = parseInt(parts[2]); }
+    if (parts[0] === 'n') { labelMap[parseInt(parts[1])] = parts[2]; }
+    if (parts[0] === 'e') {
+      // Always use 0-based integer strings as unique vertex IDs
+      edges.push([String(parseInt(parts[1]) - 1), String(parseInt(parts[2]) - 1)]);
+    }
+  });
+  const vertices = Array.from({ length: n }, (_, i) => String(i));
+  // vertexLabels: '0' → 'N', '1' → 'C', ... (only populated if n-lines present)
+  const vertexLabels = Object.keys(labelMap).length
+    ? Object.fromEntries(Object.entries(labelMap).map(([k, v]) => [String(k - 1), v]))
+    : null;
+  return { vertices, edges, vertexLabels };
+}
+
 /* ─── auto-detect format and parse ──────────────────────── */
-// LAD: first non-empty line is a lone integer (the vertex count)
+// DIMACS: contains a 'p edge ...' problem line
+// LAD:    first non-empty line is a lone integer
+// Otherwise: edge list
 function parseGraph(text) {
+  if (/^\s*p\s+edge\s+/m.test(text)) return parseDimacs(text);
   const first = text.trim().split('\n').find(l => l.trim());
   if (first && /^\d+$/.test(first.trim())) return parseLad(text);
   return parseEdgeList(text);
@@ -814,7 +845,8 @@ async function runSolver() {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       console.log('[output] raw API response:', JSON.stringify(data));
-      const mapping = data.mapping[0].map((g, i) => [G.vertices[g], H.vertices[data.mapping[1][i]]]);
+      const vLabel = (graph, idx) => graph.vertexLabels?.[String(idx)] ?? graph.vertices[idx];
+      const mapping = data.mapping[0].map((g, i) => [vLabel(G, g), vLabel(H, data.mapping[1][i])]);
       console.log('[output] converted mapping:', mapping);
       result = {
         mcis_size: parseInt(data.solution_size),
@@ -926,7 +958,7 @@ function drawGraph(svgId, graph, highlighted) {
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
     .attr('font-family', "'IBM Plex Mono', monospace").attr('font-size', '9')
     .attr('fill', d => highlighted.has(d.id) ? '#5f9fff' : '#64748b')
-    .text(d => d.id.length > 3 ? d.id.slice(0,3) : d.id);
+    .text(d => { const lbl = graph.vertexLabels?.[d.id] ?? d.id; return lbl.length > 3 ? lbl.slice(0,3) : lbl; });
 }
 
 /* ─── status helper ──────────────────────────────────────── */
@@ -937,5 +969,6 @@ function setStatus(type, msg) {
   text.textContent = msg;
 }
 </script>
+
 </body>
 </html>
