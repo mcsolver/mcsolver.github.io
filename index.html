@@ -3,10 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mcsolver — Maximum Common Induced Subgraph</title>
+  <title>Maximum Common Subgraph Solver (MCS / MCIS) — mcsolver</title>
+  <meta name="description" content="Compute the maximum common subgraph of two graphs online. mcsolver runs SymSplit, an exact maximum common induced subgraph (MCIS) algorithm with dual symmetry breaking — 75.7× faster than RRSplit (SIGMOD 2026)." />
+  <meta name="keywords" content="maximum common subgraph, maximum common induced subgraph, MCS, MCIS, McSplit, RRSplit, SymSplit, graph similarity, subgraph isomorphism, branch and bound" />
+  <meta name="author" content="Buddhi Kothalawala, Henning Koehler, Muhammad Farhan" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://mcsolver.github.io/" />
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mcsolver.github.io/" />
+  <meta property="og:title" content="Maximum Common Subgraph Solver — mcsolver" />
+  <meta property="og:description" content="Exact maximum common (induced) subgraph computation with SymSplit. Try the live solver in your browser." />
+  <meta property="og:site_name" content="mcsolver" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Maximum Common Subgraph Solver — mcsolver" />
+  <meta name="twitter:description" content="Exact maximum common (induced) subgraph computation with SymSplit. Try the live solver in your browser." />
+
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://mcsolver.github.io/#website",
+        "url": "https://mcsolver.github.io/",
+        "name": "mcsolver — Maximum Common Subgraph Solver",
+        "inLanguage": "en"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "SymSplit — Maximum Common Subgraph Solver",
+        "alternateName": ["mcsolver", "SymSplit"],
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Web",
+        "description": "Exact maximum common induced subgraph (MCIS) solver using branch-and-bound with dual (variable and value) symmetry breaking.",
+        "url": "https://mcsolver.github.io/",
+        "codeRepository": "https://github.com/mcsolver/symsplit",
+        "programmingLanguage": "C++",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is the maximum common subgraph problem?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Given two graphs G and H, the maximum common subgraph (MCS) problem asks for the largest graph that is isomorphic to a subgraph of both G and H. It is a fundamental measure of structural similarity between graphs and is NP-hard." }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the difference between maximum common induced subgraph and maximum common edge subgraph?",
+            "acceptedAnswer": { "@type": "Answer", "text": "The maximum common induced subgraph (MCIS) maximises the number of vertices and requires that all edges among the chosen vertices are preserved in both graphs. The maximum common edge subgraph (MCES) maximises the number of shared edges and does not require the subgraphs to be induced." }
+          },
+          {
+            "@type": "Question",
+            "name": "Which algorithms solve the maximum common subgraph problem exactly?",
+            "acceptedAnswer": { "@type": "Answer", "text": "State-of-the-art exact solvers use branch-and-bound search, notably McSplit, its symmetry-aware extension RRSplit, and SymSplit, which adds value-graph symmetry breaking and is on average 75.7 times faster than RRSplit." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js" defer></script>
 
   <style>
     /* ─── tokens ─────────────────────────────────────────────── */
@@ -417,9 +481,11 @@
     </svg>
     mcsolver
   </a>
+  <a href="#about">What is MCS?</a>
   <a href="#docs">Applications</a>
   <a href="#solver">Live Solver</a>
   <a href="#algorithm">Algorithm</a>
+  <a href="#faq">FAQ</a>
   <div class="nav-spacer"></div>
   <a class="nav-gh" href="https://github.com/mcsolver/symsplit" target="_blank">github ↗</a>
 </nav>
@@ -427,8 +493,8 @@
 <!-- ── hero ────────────────────────────────────────────────── -->
 <div class="hero">
   <p class="hero-eyebrow">SymSplit · PACMMOD Vol. 4 No. 3 · SIGMOD 2026</p>
-  <h1>Maximum Common<br /><em>Induced Subgraph</em></h1>
-  <p>Exact MCIS computation via dual symmetry breaking — exploiting both variable and value graph symmetries to drastically prune the branch-and-bound search space.</p>
+  <h1>Maximum Common<br /><em>Subgraph</em> Solver</h1>
+  <p>Exact maximum common induced subgraph (MCIS) computation via dual symmetry breaking — exploiting both variable and value graph symmetries to drastically prune the branch-and-bound search space.</p>
   <div class="hero-badges">
     <span class="badge blue">Branch-and-Bound</span>
     <span class="badge purple">Symmetry Breaking</span>
@@ -443,12 +509,25 @@
   <strong>G'⊆G</strong> and <strong>H'⊆H</strong> such that <strong>G' ≅ H'</strong>
 </div>
 
+<!-- ── about section ────────────────────────────────────────── -->
+<section id="about">
+  <div class="section-header">
+    <div class="section-label">Background</div>
+    <h2>What is the maximum common subgraph problem?</h2>
+    <p>The <strong>maximum common subgraph (MCS)</strong> problem asks: given two graphs <strong>G</strong> and <strong>H</strong>, what is the largest graph that appears as a subgraph of both? The size of the maximum common subgraph is a natural measure of how structurally similar two graphs are, which is why MCS is used for molecule comparison, graph similarity search, and graph matching.</p>
+    <p>There are two standard variants. The <strong>maximum common induced subgraph (MCIS)</strong> maximises the number of matched vertices, and every edge between matched vertices in one graph must also exist in the other. The <strong>maximum common edge subgraph (MCES)</strong> instead maximises the number of shared edges. Both are NP-hard, so exact solvers rely on carefully pruned search.</p>
+    <p>mcsolver solves the induced variant exactly with <strong>SymSplit</strong>, a branch-and-bound algorithm in the McSplit family that detects symmetries in both input graphs and skips search branches that can only produce equivalent solutions.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <!-- ── docs section ─────────────────────────────────────────── -->
 <section id="docs">
   <div class="section-header">
     <div class="section-label">Applications</div>
-    <h2>Where MCIS is used</h2>
-    <p>The Maximum Common Induced Subgraph problem underlies structural similarity in a broad range of domains. Below are the primary application areas.</p>
+    <h2>Applications of maximum common subgraph</h2>
+    <p>The maximum common (induced) subgraph problem underlies structural similarity in a broad range of domains. Below are the primary application areas.</p>
   </div>
 
   <div class="docs-grid">
@@ -456,31 +535,37 @@
     <div class="doc-card">
       <div class="doc-icon" style="background:#0f1d35">🧪</div>
       <h3>Cheminformatics</h3>
+      <p>Finding the largest shared substructure of two molecules for similarity search, scaffold analysis and reaction mapping.</p>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#1a1130">🧬</div>
       <h3>Bioinformatics</h3>
+      <p>Comparing protein structures, interaction networks and metabolic pathways to find conserved functional modules.</p>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#0a2018">🔍</div>
       <h3>Pattern Recognition</h3>
+      <p>Matching graph-based representations of images, shapes and scenes when exact isomorphism is too strict.</p>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#1a1200">🌐</div>
       <h3>Network Analysis</h3>
+      <p>Measuring similarity between social, communication or knowledge graphs and aligning their common structure.</p>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#0f1a35">⚙️</div>
       <h3>Hardware Verification</h3>
+      <p>Identifying common sub-circuits between designs for equivalence checking and IP reuse detection.</p>
     </div>
 
     <div class="doc-card">
       <div class="doc-icon" style="background:#1a0f0f">🔐</div>
       <h3>Software &amp; Malware Analysis</h3>
+      <p>Comparing control-flow and call graphs to detect code clones, plagiarism and malware variants.</p>
     </div>
 
   </div>
@@ -624,6 +709,30 @@
         <div class="ph-icon">⬡</div>
         <p>Upload or paste two graphs then click <strong>Run</strong></p>
       </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── faq section ──────────────────────────────────────────── -->
+<section id="faq">
+  <div class="section-header">
+    <div class="section-label">FAQ</div>
+    <h2>Maximum common subgraph FAQ</h2>
+  </div>
+  <div class="docs-grid">
+    <div class="doc-card">
+      <h3>What is the maximum common subgraph problem?</h3>
+      <p>Given two graphs G and H, the maximum common subgraph (MCS) problem asks for the largest graph that is isomorphic to a subgraph of both G and H. It is a fundamental measure of structural similarity between graphs and is NP-hard.</p>
+    </div>
+    <div class="doc-card">
+      <h3>What is the difference between maximum common induced subgraph and maximum common edge subgraph?</h3>
+      <p>The maximum common induced subgraph (MCIS) maximises the number of vertices and requires that all edges among the chosen vertices are preserved in both graphs. The maximum common edge subgraph (MCES) maximises the number of shared edges and does not require the subgraphs to be induced.</p>
+    </div>
+    <div class="doc-card">
+      <h3>Which algorithms solve the maximum common subgraph problem exactly?</h3>
+      <p>State-of-the-art exact solvers use branch-and-bound search, notably McSplit, its symmetry-aware extension RRSplit, and SymSplit, which adds value-graph symmetry breaking and is more faster than RRSplit.</p>
     </div>
   </div>
 </section>
